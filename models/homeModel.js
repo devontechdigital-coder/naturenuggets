@@ -62,6 +62,30 @@ const homeSchema = new mongoose.Schema(
           type: String,
             default: ""
         },
+           cover: {
+          type: Number,
+            default: ""
+        },
+        serviceLocations: [
+  {
+    label: String,
+    address: String,
+    area: String,
+    city: String,
+    state: String,
+    country: String,
+    pincode: String,
+    geo: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: [Number],
+    },
+    isPrimary: Boolean,
+  }
+]
     },
     { timestamps: true }
 );
