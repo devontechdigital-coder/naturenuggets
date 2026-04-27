@@ -1787,7 +1787,7 @@ export const GetAllCategoriesByParentIdController_old = async (req, res) => {
     // Fetch products based on filters with pagination
     const products = await productModel
       .find(filters)
-      .select("_id title regularPrice salePrice pImage variations slug")
+      .select("_id title regularPrice salePrice pImage variations variant_products stock slug weight gst")
       .skip(skip)
       .limit(perPage)
       .lean();
@@ -1816,6 +1816,87 @@ export const GetAllCategoriesByParentIdController_old = async (req, res) => {
 export const dwwdwdwd = async (req, res) => {
 
 }
+
+export const GetAllCategoriesByParentIdController_old_27_apr_2026 = async (req, res) => {
+  try {
+    const { parentId } = req.params;
+    const { filter, price, page = 1, perPage = 2 } = req.query; // Extract filter, price, page, and perPage query parameters
+
+    // Check if parentId is undefined or null
+    if (!parentId) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a valid parent ID.",
+      });
+    }
+
+    // Call the recursive function to get all categories
+    const categories = await getAllCategoriesByParentId(parentId);
+    const MainCat = await categoryModel
+      .findById(parentId)
+      .select("title metaTitle metaDescription metaKeywords image")
+      .lean();
+
+    const filters = { Category: parentId }; // Initialize filters with parent category filter
+
+    if (filter) {
+      // Parse the filter parameter
+      const filterParams = JSON.parse(filter);
+
+      // Iterate through each parameter in the filter
+      Object.keys(filterParams).forEach((param) => {
+        // Split parameter values by comma if present
+        const paramValues = filterParams[param].split(",");
+        const variationsKey = `variations.${param}.${param}`;
+
+        // Handle multiple values for the parameter
+        filters[variationsKey] = { $in: paramValues };
+      });
+    }
+
+    // Check if price parameter is provided and not blank
+    if (price && price.trim() !== "") {
+      const priceRanges = price.split(","); // Split multiple price ranges by comma
+      const priceFilters = priceRanges.map((range) => {
+        const [minPrice, maxPrice] = range.split("-"); // Split each range into min and max prices
+        return { salePrice: { $gte: parseInt(minPrice), $lte: parseInt(maxPrice) } };
+      });
+
+      // Add price filters to the existing filters
+      filters.$or = priceFilters;
+    }
+
+    // Calculate skip value for pagination
+    const skip = (page - 1) * perPage;
+
+    // Fetch products based on filters with pagination
+    const products = await productModel
+      .find(filters)
+      .select("_id title regularPrice salePrice pImage variations slug")
+      .skip(skip)
+      .limit(perPage)
+      .lean();
+
+    const Procat = { Category: parentId }; // Initialize filters with parent category filter
+    const productsFilter = await productModel.find(Procat).select("_id regularPrice salePrice variations").lean();
+
+    const proLength = products.length;
+    return res.status(200).json({
+      success: true,
+      categories,
+      MainCat,
+      products,
+      proLength,
+      productsFilter,
+    });
+  } catch (error) {
+    console.error("Error in GetAllCategoriesByParentIdController:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
 
 export const GetAllCategoriesByParentIdController = async (req, res) => {
   try {
@@ -1898,7 +1979,6 @@ export const GetAllCategoriesByParentIdController = async (req, res) => {
   }
 };
 
-
 export const getAllCategoriesByParentId = async (parentId) => {
   try {
     const categories = await categoryModel.find({ parent: parentId }).lean();
@@ -1915,9 +1995,9 @@ export const getAllCategoriesByParentId = async (parentId) => {
       // ✅ Latest 5 products of this category
       const latestProducts = await productModel
         .find({ Category: _id })
-        .select("_id title regularPrice salePrice pImage variations slug createdAt")
+        .select("_id title regularPrice salePrice pImage variations variant_products stock slug weight gst createdAt")
         .sort({ createdAt: -1, _id: -1 }) // fallback sort by _id also
-        .limit(6)
+        .limit(60)
         .lean();
 
       const categoryData = {
